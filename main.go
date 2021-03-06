@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
 	"os"
@@ -13,18 +13,19 @@ import (
 )
 
 func main() {
-	r := mux.NewRouter()
+	port := fmt.Sprintf(":%s", os.Getenv("PORT"))
+	if len(port) == 1 {
+		port = ":8080"
+	}
+	r := chi.NewRouter()
+	done := make(chan os.Signal, 1)
 
-	r.Use(loggingMiddleware)
-
-	r.HandleFunc("/{userId}", handler).Methods(http.MethodGet)
+	// setup routes here
 
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    port,
 		Handler: r,
 	}
-
-	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
@@ -32,30 +33,10 @@ func main() {
 			log.Fatalf("listen: %s\n", err)
 		}
 	}()
-
-	log.Print("Server Started on 8080")
+	log.Printf("server started on %s", port)
 
 	<-done
-	log.Print("Server Stopped")
 	gracefullyShutdown(srv)
-
-}
-
-func handler(w http.ResponseWriter, r *http.Request) {
-	// mux.Vars(r) returns all values captured in the request URL.
-	vars := mux.Vars(r)
-
-	_, err := fmt.Fprintf(w, "User %s\n", vars["userId"])
-	if err != nil {
-		fmt.Println(err)
-	}
-}
-
-func loggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println(r.RequestURI)
-		next.ServeHTTP(w, r)
-	})
 }
 
 func gracefullyShutdown(srv *http.Server) {
@@ -64,9 +45,8 @@ func gracefullyShutdown(srv *http.Server) {
 		// extra handling here
 		cancel()
 	}()
-
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatalf("Server Shutdown Failed:%+v", err)
 	}
-	log.Print("Server Exited Properly")
+	log.Print("server exited properly")
 }
