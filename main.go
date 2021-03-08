@@ -21,6 +21,7 @@ func main() {
 	done := make(chan os.Signal, 1)
 
 	// setup routes here
+	r.Get("/", helloWorld)
 
 	srv := &http.Server{
 		Addr:    port,
